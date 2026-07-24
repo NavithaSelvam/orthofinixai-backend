@@ -1,0 +1,12 @@
+fastapi[standard]==0.115.0
+pydantic[email]==2.9.2
+pydantic-settings==2.5.2
+firebase-admin==6.5.0
+python-multipart==0.0.12
+python-dotenv==1.0.1
+uvicorn==0.31.0
+numpy==2.1.2
+opencv-python-headless==4.10.0.84
+Pillow==10.4.0
+sqlalchemy==2.0.35
+

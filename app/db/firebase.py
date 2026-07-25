@@ -11,7 +11,7 @@ def init_firebase():
         try:
             cred = None
             firebase_path = os.getenv("FIREBASE_CREDENTIALS_PATH", settings.FIREBASE_CREDENTIALS_PATH)
-
+            print(f"DEBUG: firebase_path={firebase_path}, exists={os.path.exists(firebase_path) if firebase_path else 'N/A'}")
             if firebase_path and os.path.exists(firebase_path):
                 cred = credentials.Certificate(firebase_path)
             else:

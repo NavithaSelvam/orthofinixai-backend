@@ -5,3 +5,5 @@ __pycache__/
 uploads/
 *.db
 venv/
+
+__pycache__/

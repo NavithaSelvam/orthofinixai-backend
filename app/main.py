@@ -47,7 +47,7 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 # --------------------------
 
 app.include_router(auth.router, tags=["Auth"])
-app.include_router(patients.router, tags=["Patients"])
+app.include_router(patients.router, prefix="/patients", tags=["Patients"])
 app.include_router(cases.router, tags=["Cases"])
 app.include_router(ai.router, tags=["AI"])
 app.include_router(analysis.router, tags=["Analysis"])
@@ -60,13 +60,11 @@ app.include_router(
     tags=["Summit Analysis"]
 )
 
-# Root endpoint
+# Root endpoint (Health Check)
 @app.get("/")
-def root():
-    return {
-        "message": "Welcome to the OrthofinixAi Backend",
-        "status": "active",
-    }
+def health_check():
+    return {"status": "ok"}
+
 
 
 if __name__ == "__main__":

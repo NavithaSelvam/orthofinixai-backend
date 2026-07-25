@@ -3,23 +3,28 @@ import uuid
 import json
 from datetime import datetime, timezone
 import firebase_admin
-from firebase_admin import credentials, firestore, auth
+from firebase_admin import credentials, firestore, auth, storage
 from app.core.config import settings
-
-UPLOADS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "uploads"))
-os.makedirs(UPLOADS_DIR, exist_ok=True)
 
 def init_firebase():
     if not firebase_admin._apps:
         try:
-            if os.path.exists(settings.FIREBASE_CREDENTIALS_PATH):
+            cred_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
+            if cred_json:
+                cred_dict = json.loads(cred_json)
+                cred = credentials.Certificate(cred_dict)
+            elif os.path.exists(settings.FIREBASE_CREDENTIALS_PATH):
                 cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
-                firebase_admin.initialize_app(cred)
             else:
-                # Fallback for environments where default credentials are used (e.g. Google Cloud)
-                # Or just print a warning if missing
-                print(f"Warning: {settings.FIREBASE_CREDENTIALS_PATH} not found. Attempting default auth.")
-                firebase_admin.initialize_app()
+                cred = None
+                print("Warning: FIREBASE_CREDENTIALS_JSON not found. Attempting default auth.")
+            
+            bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET", "orthofinixai.appspot.com")
+            
+            if cred:
+                firebase_admin.initialize_app(cred, {'storageBucket': bucket_name})
+            else:
+                firebase_admin.initialize_app(options={'storageBucket': bucket_name})
         except Exception as e:
             print(f"Firebase initialization failed: {e}")
 
@@ -29,9 +34,9 @@ def get_db():
 def get_auth():
     return auth
 
-def save_analysis_record(data: dict, user_id: str) -> dict:
+def save_analysis_record(data: dict, user_id: str, provided_case_id: str = "") -> dict:
     db = get_db()
-    record_id = str(uuid.uuid4())
+    record_id = provided_case_id if provided_case_id else str(uuid.uuid4())
     data["id"] = record_id
     data["user_id"] = user_id
     data["created_at"] = datetime.now(timezone.utc).isoformat()
@@ -62,17 +67,15 @@ def get_analysis_by_id(record_id: str) -> dict:
 
 def upload_image_to_storage(file_bytes: bytes, filename: str, content_type: str = "image/jpeg") -> str:
     """
-    Save image file to local uploads directory and return dynamic retrieval URL.
+    Save image file to Firebase storage and return dynamic retrieval URL.
     """
     try:
-        unique_filename = f"{uuid.uuid4()}_{filename}"
-        filepath = os.path.join(UPLOADS_DIR, unique_filename)
-        with open(filepath, "wb") as f:
-            f.write(file_bytes)
-        
-        # Return standard URL mapped to static endpoint (using configurable domain)
-        base_url = os.environ.get("BASE_URL", "http://10.54.37.107:8000").rstrip("/")
-        return f"{base_url}/uploads/{unique_filename}"
+        bucket = storage.bucket()
+        unique_filename = f"uploads/{uuid.uuid4()}_{filename}"
+        blob = bucket.blob(unique_filename)
+        blob.upload_from_string(file_bytes, content_type=content_type)
+        blob.make_public()
+        return blob.public_url
     except Exception as e:
-        print(f"Local Storage Write Error: {e}")
-        raise ValueError("Failed to write image to storage.")
+        print(f"Firebase Storage Write Error: {e}")
+        raise ValueError(f"Failed to write image to storage: {e}")

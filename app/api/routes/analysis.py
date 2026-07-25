@@ -72,6 +72,7 @@ async def analyze_image(
     upload_id: str = Form(...),
     patient_name: str = Form(...),
     view_type: str = Form("frontal"),
+    case_id: str = Form(""),
     current_user: UserInfo = Depends(get_current_user)
 ):
     """
@@ -138,7 +139,8 @@ async def analyze_image(
 
         saved_case = save_analysis_record(
             case_data,
-            current_user.uid
+            current_user.uid,
+            case_id
         )
 
         return saved_case

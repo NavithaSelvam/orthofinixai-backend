@@ -9,7 +9,10 @@ from sqlalchemy.orm import Session
 from app.api.deps_summit import get_current_summit_user
 from app.db.orm_models import User, AnalysisReport
 from app.db.sqlalchemy_db import get_db_session
-from app.db.firebase import UPLOADS_DIR, upload_image_to_storage
+from app.db.firebase import upload_image_to_storage
+
+UPLOADS_DIR = "uploads"
+
 from app.models.summit_schemas import (
     UploadResponse,
     AnalyzeRequest,

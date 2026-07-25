@@ -11,4 +11,8 @@ services:
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: PYTHON_VERSION
-        value: "3.11.0"
+        value: "3.12.8"
+      - key: BASE_URL
+        value: "https://orthofinixai-backend.onrender.com"
+      - key: FIREBASE_CREDENTIALS_JSON
+        sync: false # Set this in Render dashboard

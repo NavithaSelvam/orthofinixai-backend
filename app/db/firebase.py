@@ -1,4 +1,4 @@
-import os
+﻿import os
 import uuid
 import json
 from datetime import datetime, timezone
@@ -9,18 +9,25 @@ from app.core.config import settings
 def init_firebase():
     if not firebase_admin._apps:
         try:
-            cred_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
-            if cred_json:
-                cred_dict = json.loads(cred_json)
-                cred = credentials.Certificate(cred_dict)
-            elif os.path.exists(settings.FIREBASE_CREDENTIALS_PATH):
-                cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
+            cred = None
+            firebase_path = os.getenv("FIREBASE_CREDENTIALS_PATH", settings.FIREBASE_CREDENTIALS_PATH)
+
+            if firebase_path and os.path.exists(firebase_path):
+                cred = credentials.Certificate(firebase_path)
             else:
-                cred = None
-                print("Warning: FIREBASE_CREDENTIALS_JSON not found. Attempting default auth.")
-            
+                cred_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
+                if cred_json:
+                    try:
+                        cred_dict = json.loads(cred_json)
+                        cred = credentials.Certificate(cred_dict)
+                    except json.JSONDecodeError as e:
+                        print(f"Warning: FIREBASE_CREDENTIALS_JSON is malformed, ignoring it: {e}")
+
+            if cred is None:
+                print("Warning: No valid Firebase credentials found. Attempting default auth.")
+
             bucket_name = os.getenv("FIREBASE_STORAGE_BUCKET", "orthofinixai.appspot.com")
-            
+
             if cred:
                 firebase_admin.initialize_app(cred, {'storageBucket': bucket_name})
             else:
@@ -40,15 +47,11 @@ def save_analysis_record(data: dict, user_id: str, provided_case_id: str = "") -
     data["id"] = record_id
     data["user_id"] = user_id
     data["created_at"] = datetime.now(timezone.utc).isoformat()
-    
-    # ensure no None values that Firestore rejects
+
     safe_data = json.loads(json.dumps(data))
-    
-    # Write to users/{user_id}/cases/{record_id} to match Android app's path, 
-    # OR write to analyzed_cases to match old backend format. Let's write to both or just users.
-    # The requirement says: "Storage: Firestore + Room local database cache must remain synchronized."
+
     db.collection("users").document(user_id).collection("cases").document(record_id).set(safe_data)
-    
+
     return safe_data
 
 def get_user_analysis_history(user_id: str) -> list:
@@ -58,17 +61,12 @@ def get_user_analysis_history(user_id: str) -> list:
 
 def get_analysis_by_id(record_id: str) -> dict:
     db = get_db()
-    # To find it we might need user_id, but the old implementation didn't take user_id. 
-    # Let's query across all cases if we don't know the user, but firestore requires group collection query.
     docs = db.collection_group("cases").where("id", "==", record_id).limit(1).stream()
     for doc in docs:
         return doc.to_dict()
     return None
 
 def upload_image_to_storage(file_bytes: bytes, filename: str, content_type: str = "image/jpeg") -> str:
-    """
-    Save image file to Firebase storage and return dynamic retrieval URL.
-    """
     try:
         bucket = storage.bucket()
         unique_filename = f"uploads/{uuid.uuid4()}_{filename}"

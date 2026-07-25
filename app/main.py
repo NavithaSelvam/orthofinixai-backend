@@ -64,6 +64,10 @@ app.include_router(
 @app.get("/")
 def health_check():
     return {"status": "ok"}
+    
+@app.get("/ping")
+def ping():
+    return {"ping": "pong"}
 
 
 

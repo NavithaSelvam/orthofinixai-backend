@@ -58,20 +58,23 @@ def get_user_analysis_history(user_id: str) -> list:
     db = get_db()
     docs = db.collection("users").document(user_id).collection("cases").order_by("created_at", direction=firestore.Query.DESCENDING).limit(50).stream()
     return [doc.to_dict() for doc in docs]
+
 def upload_image_to_storage(file_bytes: bytes, filename: str, content_type: str = "image/jpeg") -> str:
     """
-    Save image file to Firebase storage and return dynamic retrieval URL.
+    Save image file to local disk and return a servable URL.
     """
     try:
-        bucket = storage.bucket()
-        unique_filename = f"uploads/{uuid.uuid4()}_{filename}"
-        blob = bucket.blob(unique_filename)
-        blob.upload_from_string(file_bytes, content_type=content_type)
-        blob.make_public()
-        return blob.public_url
+        os.makedirs("uploads", exist_ok=True)
+        unique_filename = f"{uuid.uuid4()}_{filename}"
+        filepath = os.path.join("uploads", unique_filename)
+        with open(filepath, "wb") as f:
+            f.write(file_bytes)
+        base_url = os.getenv("PUBLIC_BASE_URL", "https://orthofinixai-backend.onrender.com")
+        return f"{base_url}/uploads/{unique_filename}"
     except Exception as e:
-        print(f"Firebase Storage Write Error: {e}")
+        print(f"Local Storage Write Error: {e}")
         raise ValueError(f"Failed to write image to storage: {e}")
+
 def get_analysis_by_id(record_id: str) -> dict:
     db = get_db()
     docs = db.collection_group("cases").where("id", "==", record_id).limit(1).stream()
